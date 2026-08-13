@@ -1,0 +1,29 @@
+# PostgreSQL. Versions 9.3 and up are supported.
+#
+# Every credential is read from the environment (see .env.example). Nothing
+# sensitive belongs in this file.
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  host: <%= ENV.fetch("DATABASE_HOST", "localhost") %>
+  port: <%= ENV.fetch("DATABASE_PORT", 5432) %>
+  username: <%= ENV.fetch("DATABASE_USERNAME", nil) %>
+  password: <%= ENV.fetch("DATABASE_PASSWORD", nil) %>
+
+development:
+  <<: *default
+  database: <%= ENV.fetch("DATABASE_NAME", "social_scheduler_development") %>
+
+# Warning: The database defined as "test" will be erased and
+# re-generated from your development database when you run "rake".
+# Do not set this db to the same as development or production.
+test:
+  <<: *default
+  database: <%= ENV.fetch("TEST_DATABASE_NAME", "social_scheduler_test") %>
+
+# In production Rails merges DATABASE_URL over these values when it is present,
+# which is the preferred way to configure a deployed environment.
+production:
+  <<: *default
+  database: <%= ENV.fetch("DATABASE_NAME", "social_scheduler_production") %>
