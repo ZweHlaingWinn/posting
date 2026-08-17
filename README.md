@@ -82,6 +82,20 @@ npm install
 npm run dev                   # http://localhost:5173
 ```
 
+## Deploy the frontend on Netlify
+
+`netlify.toml` at the repo root builds `frontend/` and publishes `dist/`. Client
+routes such as `/login` are rewritten to `index.html`.
+
+1. In Netlify, **Add new site → Import an existing project** and select this
+   repo. Leave the UI **Base directory** empty — `netlify.toml` already sets it
+   to `frontend`. If Base directory is also `frontend`, the build looks in
+   `frontend/frontend` and fails.
+2. Add `VITE_API_BASE_URL` (Site configuration → Environment variables) set to
+   `https://<your-render-service>.onrender.com/api/v1`. Vite inlines this at
+   build time, so trigger a new deploy after changing it.
+3. Deploy. `https://<site>.netlify.app/login` should load the sign-in page.
+
 ## API
 
 All endpoints are versioned under `/api/v1`. Successful responses return the
