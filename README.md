@@ -69,7 +69,7 @@ service, a Sidekiq worker, Postgres, and a Redis-compatible Key Value store.
    `SMTP_PASSWORD`) so password-reset mail is actually delivered. Add OAuth
    client IDs/secrets to the same group when you connect platforms.
 
-The API is healthy at `GET /up`. OAuth callback URLs use the Render hostname
+The API is healthy at `GET /up` (and `GET /` returns `{ "status": "ok" }`). OAuth callback URLs use the Render hostname
 automatically (`https://<service>.onrender.com/api/v1/oauth/<platform>/callback`)
 unless you set `BACKEND_URL`.
 
