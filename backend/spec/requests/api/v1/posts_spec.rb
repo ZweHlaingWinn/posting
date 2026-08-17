@@ -1,6 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe 'Api::V1::Posts', type: :request do
+  include ActiveJob::TestHelper
   let(:user) { create(:user) }
   let(:tiktok) { create(:social_account, :tiktok, user: user) }
   let(:headers) { auth_headers_for(user) }
@@ -159,15 +160,17 @@ RSpec.describe 'Api::V1::Posts', type: :request do
     end
 
     it 'creates a draft from an uploaded video file' do
-      post '/api/v1/posts',
-           params: {
-             post: {
-               content: 'Shipping something new',
-               social_account_ids: [tiktok.id],
-               video: uploaded_video
-             }
-           },
-           headers: headers
+      expect {
+        post '/api/v1/posts',
+             params: {
+               post: {
+                 content: 'Shipping something new',
+                 social_account_ids: [tiktok.id],
+                 video: uploaded_video
+               }
+             },
+             headers: headers
+      }.not_to have_enqueued_job(ActiveStorage::AnalyzeJob)
 
       expect(response).to have_http_status(:created)
       expect(json_body['post']).to include('status' => 'draft', 'has_video' => true, 'video_filename' => 'clip.mp4')

@@ -44,6 +44,12 @@ module Backend
     # Background jobs (including Devise's reset-password mail) run through Sidekiq.
     config.active_job.queue_adapter = :sidekiq
 
+    # VideoAnalyzer would enqueue ActiveStorage::AnalyzeJob (and needs ffprobe).
+    # We already validate the file at upload, so skip analysis rather than let a
+    # Redis outage fail the request after the bytes have already been stored.
+    config.active_storage.analyzers = []
+    config.active_storage.previewers = []
+
     # Active Record Encryption protects SocialAccount#access_token and
     # #refresh_token at rest. Keys come from the environment; generate a set with
     # `bin/rails db:encryption:init`. Development and test supply throwaway keys
