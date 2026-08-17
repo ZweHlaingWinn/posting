@@ -51,6 +51,28 @@ cd backend
 bundle exec rspec
 ```
 
+## Deploy the backend on Render
+
+Infrastructure is declared in `render.yaml` at the repo root: a Rails web
+service, a Sidekiq worker, Postgres, and a Redis-compatible Key Value store.
+
+1. Push this repo to GitHub, GitLab, or Bitbucket.
+2. In the [Render Dashboard](https://dashboard.render.com), go to **Blueprints →
+   New Blueprint Instance** and select the repo.
+3. Apply the Blueprint. Render generates `SECRET_KEY_BASE`, the JWT secret, and
+   Active Record encryption keys. Do not rotate those encryption keys later or
+   existing social-account tokens become unreadable.
+4. After the first deploy, open the `social-scheduler-settings` environment
+   group and set `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS` to your SPA origin
+   (comma-separated if you need more than one).
+5. Optional: add SMTP vars (`SMTP_ADDRESS`, `SMTP_PORT`, `SMTP_USERNAME`,
+   `SMTP_PASSWORD`) so password-reset mail is actually delivered. Add OAuth
+   client IDs/secrets to the same group when you connect platforms.
+
+The API is healthy at `GET /up`. OAuth callback URLs use the Render hostname
+automatically (`https://<service>.onrender.com/api/v1/oauth/<platform>/callback`)
+unless you set `BACKEND_URL`.
+
 ## Frontend setup
 
 ```bash

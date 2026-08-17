@@ -1,8 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import AppLayout from '@/layouts/AppLayout.vue'
 
 const routes = [
-  { path: '/', redirect: '/dashboard' },
+  { path: '/', redirect: '/launches' },
+  { path: '/dashboard', redirect: '/launches' },
   {
     path: '/login',
     name: 'login',
@@ -28,12 +30,28 @@ const routes = [
     meta: { guestOnly: true }
   },
   {
-    path: '/dashboard',
-    name: 'dashboard',
-    component: () => import('@/views/DashboardView.vue'),
-    meta: { requiresAuth: true }
+    // Everything inside the authenticated shell shares the sidebar and the
+    // channels store loaded by AppLayout.
+    path: '/',
+    component: AppLayout,
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'launches',
+        name: 'launches',
+        component: () => import('@/views/LaunchesView.vue')
+      },
+      {
+        // The backend OAuth callback redirects here with ?connected= or
+        // ?connect_error=, so this path must stay in sync with
+        // Api::V1::Oauth::CallbacksController.
+        path: 'settings/accounts',
+        name: 'settings-accounts',
+        component: () => import('@/views/SettingsAccountsView.vue')
+      }
+    ]
   },
-  { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
+  { path: '/:pathMatch(.*)*', redirect: '/launches' }
 ]
 
 const router = createRouter({
@@ -44,13 +62,12 @@ const router = createRouter({
 router.beforeEach((to) => {
   const auth = useAuthStore()
 
-  if (to.meta.requiresAuth && !auth.isAuthenticated) {
-    // Remember where they were headed so login can send them back.
+  if (to.matched.some((record) => record.meta.requiresAuth) && !auth.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
 
   if (to.meta.guestOnly && auth.isAuthenticated) {
-    return { name: 'dashboard' }
+    return { name: 'launches' }
   }
 
   return true

@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import AuthCard from '@/components/AuthCard.vue'
 
 const auth = useAuthStore()
 
@@ -29,33 +30,28 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div class="auth-layout">
-    <div class="card">
-      <h1>Reset your password</h1>
-      <p class="subtitle">We'll email you a link to choose a new one.</p>
+  <AuthCard title="Reset your password" subtitle="We'll email you a link to choose a new one.">
+    <div v-if="notice" class="alert-success">{{ notice }}</div>
 
-      <div v-if="notice" class="alert alert-success">{{ notice }}</div>
+    <div v-if="errors.length" class="alert-error">
+      <ul class="list-inside list-disc space-y-1">
+        <li v-for="message in errors" :key="message">{{ message }}</li>
+      </ul>
+    </div>
 
-      <div v-if="errors.length" class="alert alert-error">
-        <ul>
-          <li v-for="message in errors" :key="message">{{ message }}</li>
-        </ul>
+    <form class="space-y-4" @submit.prevent="onSubmit">
+      <div>
+        <label class="field-label" for="email">Email</label>
+        <input id="email" v-model="email" class="field-input" type="email" autocomplete="email" required />
       </div>
 
-      <form @submit.prevent="onSubmit">
-        <div class="field">
-          <label for="email">Email</label>
-          <input id="email" v-model="email" type="email" autocomplete="email" required />
-        </div>
+      <button class="btn-primary w-full" type="submit" :disabled="loading">
+        {{ loading ? 'Sending...' : 'Send reset link' }}
+      </button>
+    </form>
 
-        <button class="btn" type="submit" :disabled="loading">
-          {{ loading ? 'Sending...' : 'Send reset link' }}
-        </button>
-      </form>
-
-      <p class="form-footer">
-        <RouterLink to="/login">Back to sign in</RouterLink>
-      </p>
-    </div>
-  </div>
+    <template #footer>
+      <RouterLink to="/login" class="text-brand hover:underline">Back to sign in</RouterLink>
+    </template>
+  </AuthCard>
 </template>

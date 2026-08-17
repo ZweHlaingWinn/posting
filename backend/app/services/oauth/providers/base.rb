@@ -56,7 +56,9 @@ module Oauth
       # Where the provider sends the browser back. Registered with the provider's
       # developer console, so it must match exactly.
       def redirect_uri
-        base = ENV.fetch("BACKEND_URL", "http://localhost:3000")
+        base = ENV["BACKEND_URL"].presence ||
+               ENV["RENDER_EXTERNAL_URL"].presence ||
+               "http://localhost:3000"
         "#{base}/api/v1/oauth/#{self.class.platform}/callback"
       end
     end

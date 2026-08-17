@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import AuthCard from '@/components/AuthCard.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -22,7 +23,7 @@ async function onSubmit() {
       password: password.value,
       passwordConfirmation: passwordConfirmation.value
     })
-    router.push({ name: 'dashboard' })
+    router.push({ name: 'launches' })
   } catch (error) {
     errors.value = error.messages ?? ['Unable to create your account.']
   } finally {
@@ -32,55 +33,53 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div class="auth-layout">
-    <div class="card">
-      <h1>Create your account</h1>
-      <p class="subtitle">Schedule and publish across every platform.</p>
+  <AuthCard title="Create your account" subtitle="Schedule and publish across every platform.">
+    <div v-if="errors.length" class="alert-error">
+      <ul class="list-inside list-disc space-y-1">
+        <li v-for="message in errors" :key="message">{{ message }}</li>
+      </ul>
+    </div>
 
-      <div v-if="errors.length" class="alert alert-error">
-        <ul>
-          <li v-for="message in errors" :key="message">{{ message }}</li>
-        </ul>
+    <form class="space-y-4" @submit.prevent="onSubmit">
+      <div>
+        <label class="field-label" for="email">Email</label>
+        <input id="email" v-model="email" class="field-input" type="email" autocomplete="email" required />
       </div>
 
-      <form @submit.prevent="onSubmit">
-        <div class="field">
-          <label for="email">Email</label>
-          <input id="email" v-model="email" type="email" autocomplete="email" required />
-        </div>
+      <div>
+        <label class="field-label" for="password">Password</label>
+        <input
+          id="password"
+          v-model="password"
+          class="field-input"
+          type="password"
+          autocomplete="new-password"
+          minlength="6"
+          required
+        />
+      </div>
 
-        <div class="field">
-          <label for="password">Password</label>
-          <input
-            id="password"
-            v-model="password"
-            type="password"
-            autocomplete="new-password"
-            minlength="6"
-            required
-          />
-        </div>
+      <div>
+        <label class="field-label" for="password-confirmation">Confirm password</label>
+        <input
+          id="password-confirmation"
+          v-model="passwordConfirmation"
+          class="field-input"
+          type="password"
+          autocomplete="new-password"
+          minlength="6"
+          required
+        />
+      </div>
 
-        <div class="field">
-          <label for="password-confirmation">Confirm password</label>
-          <input
-            id="password-confirmation"
-            v-model="passwordConfirmation"
-            type="password"
-            autocomplete="new-password"
-            minlength="6"
-            required
-          />
-        </div>
+      <button class="btn-primary w-full" type="submit" :disabled="loading">
+        {{ loading ? 'Creating account...' : 'Create account' }}
+      </button>
+    </form>
 
-        <button class="btn" type="submit" :disabled="loading">
-          {{ loading ? 'Creating account...' : 'Create account' }}
-        </button>
-      </form>
-
-      <p class="form-footer">
-        Already registered? <RouterLink to="/login">Sign in</RouterLink>
-      </p>
-    </div>
-  </div>
+    <template #footer>
+      Already registered?
+      <RouterLink to="/login" class="text-brand hover:underline">Sign in</RouterLink>
+    </template>
+  </AuthCard>
 </template>

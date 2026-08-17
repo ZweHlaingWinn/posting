@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import AuthCard from '@/components/AuthCard.vue'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -37,56 +38,55 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div class="auth-layout">
-    <div class="card">
-      <h1>Choose a new password</h1>
-      <p class="subtitle">Enter a new password for your account.</p>
-
-      <div v-if="!token" class="alert alert-error">
-        This reset link is missing its token. Please request a new one.
-      </div>
-
-      <div v-if="notice" class="alert alert-success">{{ notice }}</div>
-
-      <div v-if="errors.length" class="alert alert-error">
-        <ul>
-          <li v-for="message in errors" :key="message">{{ message }}</li>
-        </ul>
-      </div>
-
-      <form v-if="token" @submit.prevent="onSubmit">
-        <div class="field">
-          <label for="password">New password</label>
-          <input
-            id="password"
-            v-model="password"
-            type="password"
-            autocomplete="new-password"
-            minlength="6"
-            required
-          />
-        </div>
-
-        <div class="field">
-          <label for="password-confirmation">Confirm new password</label>
-          <input
-            id="password-confirmation"
-            v-model="passwordConfirmation"
-            type="password"
-            autocomplete="new-password"
-            minlength="6"
-            required
-          />
-        </div>
-
-        <button class="btn" type="submit" :disabled="loading">
-          {{ loading ? 'Updating...' : 'Update password' }}
-        </button>
-      </form>
-
-      <p class="form-footer">
-        <RouterLink to="/forgot-password">Request a new link</RouterLink>
-      </p>
+  <AuthCard title="Choose a new password" subtitle="Enter a new password for your account.">
+    <div v-if="!token" class="alert-error">
+      This reset link is missing its token. Please request a new one.
     </div>
-  </div>
+
+    <div v-if="notice" class="alert-success">{{ notice }}</div>
+
+    <div v-if="errors.length" class="alert-error">
+      <ul class="list-inside list-disc space-y-1">
+        <li v-for="message in errors" :key="message">{{ message }}</li>
+      </ul>
+    </div>
+
+    <form v-if="token" class="space-y-4" @submit.prevent="onSubmit">
+      <div>
+        <label class="field-label" for="password">New password</label>
+        <input
+          id="password"
+          v-model="password"
+          class="field-input"
+          type="password"
+          autocomplete="new-password"
+          minlength="6"
+          required
+        />
+      </div>
+
+      <div>
+        <label class="field-label" for="password-confirmation">Confirm new password</label>
+        <input
+          id="password-confirmation"
+          v-model="passwordConfirmation"
+          class="field-input"
+          type="password"
+          autocomplete="new-password"
+          minlength="6"
+          required
+        />
+      </div>
+
+      <button class="btn-primary w-full" type="submit" :disabled="loading">
+        {{ loading ? 'Updating...' : 'Update password' }}
+      </button>
+    </form>
+
+    <template #footer>
+      <RouterLink to="/forgot-password" class="text-brand hover:underline">
+        Request a new link
+      </RouterLink>
+    </template>
+  </AuthCard>
 </template>
