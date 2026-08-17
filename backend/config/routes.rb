@@ -18,6 +18,10 @@ Rails.application.routes.draw do
       resources :social_accounts, only: %i[index destroy]
       resources :platforms, only: :index
 
+      resources :posts, only: %i[index show create update destroy] do
+        post :publish, on: :member
+      end
+
       # Connecting a social account. `authorize` is called by the SPA with a JWT;
       # `callback` is a browser redirect from the provider and is therefore
       # unauthenticated, relying on the encrypted state parameter instead.

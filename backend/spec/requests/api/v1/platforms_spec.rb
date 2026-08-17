@@ -12,7 +12,11 @@ RSpec.describe 'Api::V1::Platforms', type: :request do
         .to eq(%w[twitter linkedin facebook instagram tiktok])
     end
 
+    # A developer's own .env may carry real TikTok credentials, so these two
+    # examples set the environment they need and put back whatever was there.
     it 'marks TikTok connectable once its credentials are configured' do
+      key = ENV['TIKTOK_CLIENT_KEY']
+      secret = ENV['TIKTOK_CLIENT_SECRET']
       ENV['TIKTOK_CLIENT_KEY'] = 'key'
       ENV['TIKTOK_CLIENT_SECRET'] = 'secret'
 
@@ -21,15 +25,21 @@ RSpec.describe 'Api::V1::Platforms', type: :request do
 
       expect(tiktok['connectable']).to be(true)
     ensure
-      ENV.delete('TIKTOK_CLIENT_KEY')
-      ENV.delete('TIKTOK_CLIENT_SECRET')
+      ENV['TIKTOK_CLIENT_KEY'] = key
+      ENV['TIKTOK_CLIENT_SECRET'] = secret
     end
 
     it 'marks TikTok not connectable while credentials are absent' do
+      key = ENV.delete('TIKTOK_CLIENT_KEY')
+      secret = ENV.delete('TIKTOK_CLIENT_SECRET')
+
       get '/api/v1/platforms', headers: auth_headers_for(user), as: :json
       tiktok = json_body['platforms'].find { |p| p['id'] == 'tiktok' }
 
       expect(tiktok['connectable']).to be(false)
+    ensure
+      ENV['TIKTOK_CLIENT_KEY'] = key
+      ENV['TIKTOK_CLIENT_SECRET'] = secret
     end
 
     it 'marks platforms with no OAuth provider as not connectable' do
@@ -39,10 +49,18 @@ RSpec.describe 'Api::V1::Platforms', type: :request do
       expect(facebook['connectable']).to be(false)
     end
 
-    it 'reports nothing publishable while every adapter is a stub' do
+    it 'reports TikTok publishable now that its adapter is built' do
       get '/api/v1/platforms', headers: auth_headers_for(user), as: :json
+      tiktok = json_body['platforms'].find { |p| p['id'] == 'tiktok' }
 
-      expect(json_body['platforms'].map { |p| p['publishable'] }).to all(be(false))
+      expect(tiktok['publishable']).to be(true)
+    end
+
+    it 'reports the platforms whose adapters are still stubs as not publishable' do
+      get '/api/v1/platforms', headers: auth_headers_for(user), as: :json
+      stubbed = json_body['platforms'].reject { |p| p['id'] == 'tiktok' }
+
+      expect(stubbed.map { |p| p['publishable'] }).to all(be(false))
     end
 
     it 'returns a display name per platform' do

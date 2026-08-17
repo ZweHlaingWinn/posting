@@ -17,6 +17,12 @@ module Publishers
       false
     end
 
+    # Whether the platform refuses a text-only post. Callers check this before
+    # accepting a post with no media rather than discovering it mid-publish.
+    def self.requires_media?
+      false
+    end
+
     # Human-readable platform name used in error messages.
     def self.platform_name
       name.demodulize.sub(/Publisher\z/, "").underscore

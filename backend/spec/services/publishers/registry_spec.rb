@@ -40,15 +40,14 @@ RSpec.describe Publishers::Registry do
   end
 
   describe '.implemented_platforms' do
-    it 'reports none while every adapter is still a stub' do
-      expect(described_class.implemented_platforms).to be_empty
-    end
-
-    it 'reflects an adapter that reports itself implemented' do
-      allow(Publishers::TiktokPublisher).to receive(:implemented?).and_return(true)
-
+    it 'reports TikTok, whose adapter is built' do
       expect(described_class.implemented_platforms).to eq(['tiktok'])
       expect(described_class).to be_implemented('tiktok')
+    end
+
+    it 'leaves out the adapters that are still stubs' do
+      expect(described_class.implemented_platforms).not_to include('twitter', 'facebook')
+      expect(described_class).not_to be_implemented('twitter')
     end
   end
 end

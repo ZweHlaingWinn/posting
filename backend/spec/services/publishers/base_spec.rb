@@ -97,10 +97,25 @@ RSpec.describe Publishers::Base do
       expect(described_class).not_to be_implemented
     end
 
-    it 'is false for every adapter while the integrations are stubs' do
-      Publishers::Registry.supported_platforms.each do |platform|
+    it 'is false for the adapters that are still stubs' do
+      (Publishers::Registry.supported_platforms - ['tiktok']).each do |platform|
         expect(Publishers::Registry.adapter_class(platform)).not_to be_implemented
       end
+    end
+
+    it 'is true for the adapters that are built' do
+      expect(Publishers::TiktokPublisher).to be_implemented
+    end
+  end
+
+  describe '.requires_media?' do
+    it 'is false unless an adapter opts in' do
+      expect(described_class).not_to be_requires_media
+      expect(Publishers::TwitterPublisher).not_to be_requires_media
+    end
+
+    it 'is true for TikTok, which refuses a text-only post' do
+      expect(Publishers::TiktokPublisher).to be_requires_media
     end
   end
 end
