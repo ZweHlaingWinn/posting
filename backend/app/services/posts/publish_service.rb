@@ -11,7 +11,7 @@ module Posts
     end
 
     def call
-      post = @user.posts.includes(post_targets: :social_account).find_by(id: @post_id)
+      post = @user.posts.with_attached_video.includes(post_targets: :social_account).find_by(id: @post_id)
 
       return failure(errors: ["Post not found"], status: :not_found) if post.nil?
       return failure(errors: ["This post has already been sent"]) if post.status_published?

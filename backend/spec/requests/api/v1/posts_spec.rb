@@ -158,6 +158,56 @@ RSpec.describe 'Api::V1::Posts', type: :request do
       expect(json_body['errors']).to include(/need a video/)
     end
 
+    it 'creates a draft from an uploaded video file' do
+      post '/api/v1/posts',
+           params: {
+             post: {
+               content: 'Shipping something new',
+               social_account_ids: [tiktok.id],
+               video: uploaded_video
+             }
+           },
+           headers: headers
+
+      expect(response).to have_http_status(:created)
+      expect(json_body['post']).to include('status' => 'draft', 'has_video' => true, 'video_filename' => 'clip.mp4')
+      expect(Post.find(json_body['post']['id']).video).to be_attached
+    end
+
+    it 'publishes an uploaded video without a media URL' do
+      stub_publisher(publish_id: 'publish-file')
+
+      post '/api/v1/posts',
+           params: {
+             post: {
+               content: 'Shipping something new',
+               social_account_ids: [tiktok.id],
+               publish_now: true,
+               video: uploaded_video
+             }
+           },
+           headers: headers
+
+      expect(response).to have_http_status(:created)
+      expect(json_body['post']['status']).to eq('published')
+      expect(json_body['post']['targets'].first['platform_post_id']).to eq('publish-file')
+    end
+
+    it 'rejects an uploaded file that is not a video' do
+      post '/api/v1/posts',
+           params: {
+             post: {
+               content: 'nope',
+               social_account_ids: [tiktok.id],
+               video: uploaded_video(filename: 'notes.txt', content_type: 'text/plain')
+             }
+           },
+           headers: headers
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(json_body['errors']).to include(/expected an MP4, MOV or WebM/)
+    end
+
     it 'requires a post parameter' do
       post '/api/v1/posts', params: {}, headers: headers, as: :json
 

@@ -60,6 +60,10 @@ RSpec.describe Post, type: :model do
       expect(build(:post, :with_media)).to be_valid
     end
 
+    it 'allows empty content when a video file is attached' do
+      expect(build(:post, :with_uploaded_video, content: nil)).to be_valid
+    end
+
     it 'requires scheduled_at when the status is scheduled' do
       post = build(:post, status: :scheduled, scheduled_at: nil)
 

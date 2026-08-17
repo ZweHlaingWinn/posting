@@ -11,8 +11,9 @@ module Publishers
   # the feed is a different endpoint gated on `video.publish`, which requires
   # passing TikTok's app audit, so it is deliberately not used here.
   #
-  # Content constraint: no text-only post. Post#media_urls must carry a video and
-  # Post#content becomes the caption the creator sees pre-filled.
+  # Content constraint: no text-only post. Post#media_urls or an uploaded video
+  # must carry the file, and Post#content becomes the caption the creator sees
+  # pre-filled.
   class TiktokPublisher < Base
     INIT_URL = "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/".freeze
     STATUS_URL = "https://open.tiktokapis.com/v2/post/publish/status/fetch/".freeze
@@ -65,16 +66,26 @@ module Publishers
     # inbox upload. A real post id exists only after the creator publishes the
     # draft themselves.
     def perform_publish(post, _post_target)
-      source_url = post.media_urls.first
+      with_video(post) do |media|
+        target = initialize_upload(media)
 
-      if source_url.blank?
-        raise PublishError.new(
-          "TikTok posts need a video. Add a video URL to this post.",
-          platform: self.class.platform_name
-        )
+        begin
+          Http.put_binary(
+            target.fetch("upload_url"),
+            media.file,
+            content_type: media.content_type,
+            size: media.size
+          )
+        rescue Http::Error => e
+          raise PublishError.new(
+            "TikTok did not accept the video upload: #{e.message}",
+            platform: self.class.platform_name,
+            retryable: e.retryable?
+          )
+        end
+
+        target.fetch("publish_id")
       end
-
-      upload(source_url)
     end
 
     def refresh_token!
@@ -112,26 +123,35 @@ module Publishers
 
     private
 
-    def upload(source_url)
-      MediaSource.fetch(source_url, max_bytes: max_video_bytes) do |media|
-        target = initialize_upload(media)
+    def with_video(post, &block)
+      if post.video.attached?
+        blob = post.video.blob
 
-        begin
-          Http.put_binary(
-            target.fetch("upload_url"),
-            media.file,
-            content_type: media.content_type,
-            size: media.size
-          )
-        rescue Http::Error => e
+        if blob.byte_size > max_video_bytes
           raise PublishError.new(
-            "TikTok did not accept the video upload: #{e.message}",
-            platform: self.class.platform_name,
-            retryable: e.retryable?
+            "Could not use that video: #{MediaSource.too_large_message_for(max_video_bytes)}",
+            platform: self.class.platform_name
           )
         end
 
-        target.fetch("publish_id")
+        blob.open do |file|
+          yield MediaSource::Media.new(
+            file: file,
+            content_type: blob.content_type,
+            size: blob.byte_size
+          )
+        end
+      else
+        source_url = post.media_urls.first
+
+        if source_url.blank?
+          raise PublishError.new(
+            "TikTok posts need a video. Upload a file or add a video URL.",
+            platform: self.class.platform_name
+          )
+        end
+
+        MediaSource.fetch(source_url, max_bytes: max_video_bytes, &block)
       end
     rescue MediaSource::Error => e
       raise PublishError.new(

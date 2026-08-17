@@ -61,9 +61,14 @@ RSpec.configure do |config|
   config.include FactoryBot::Syntax::Methods
   config.include JsonHelpers, type: :request
   config.include AuthHelpers, type: :request
+  config.include UploadHelpers, type: :request
   config.include ActiveSupport::Testing::TimeHelpers
 
   config.before { ActionMailer::Base.deliveries.clear }
+
+  config.after(:suite) do
+    FileUtils.rm_rf(ActiveStorage::Blob.service.root)
+  end
 
   # Filter lines from Rails gems in backtraces.
   config.filter_rails_from_backtrace!

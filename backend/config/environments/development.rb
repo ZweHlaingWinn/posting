@@ -30,6 +30,9 @@ Rails.application.configure do
     config.cache_store = :null_store
   end
 
+  # Uploaded videos live on disk and are read back when publishing to TikTok.
+  config.active_storage.service = :local
+
   # Don't care if the mailer can't send.
   config.action_mailer.raise_delivery_errors = false
 

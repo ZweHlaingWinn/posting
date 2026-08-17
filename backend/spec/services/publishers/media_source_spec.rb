@@ -226,6 +226,44 @@ RSpec.describe Publishers::MediaSource do
     end
   end
 
+  describe '.validate_upload!' do
+    def fake_upload(filename: 'clip.mp4', content_type: 'video/mp4', size: 12)
+      instance_double(
+        ActionDispatch::Http::UploadedFile,
+        original_filename: filename,
+        content_type: content_type,
+        size: size
+      )
+    end
+
+    it 'returns the canonical type for an mp4' do
+      expect(described_class.validate_upload!(fake_upload)).to eq('video/mp4')
+    end
+
+    it 'falls back to the filename when the browser sends octet-stream' do
+      expect(
+        described_class.validate_upload!(
+          fake_upload(filename: 'clip.mov', content_type: 'application/octet-stream')
+        )
+      ).to eq('video/quicktime')
+    end
+
+    it 'refuses a non-video file' do
+      expect { described_class.validate_upload!(fake_upload(filename: 'notes.txt', content_type: 'text/plain')) }
+        .to raise_error(described_class::Error, /expected an MP4, MOV or WebM/)
+    end
+
+    it 'refuses an empty file' do
+      expect { described_class.validate_upload!(fake_upload(size: 0)) }
+        .to raise_error(described_class::Error, /empty/)
+    end
+
+    it 'refuses a file over the size cap' do
+      expect { described_class.validate_upload!(fake_upload(size: 65 * 1024 * 1024), max_bytes: 64 * 1024 * 1024) }
+        .to raise_error(described_class::Error, /64 MB limit/)
+    end
+  end
+
   describe 'redirects' do
     def redirect_to(location)
       response(Net::HTTPFound, '302', headers: { 'Location' => location })

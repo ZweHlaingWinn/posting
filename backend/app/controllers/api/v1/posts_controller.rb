@@ -48,7 +48,7 @@ module Api
 
       def post_params
         params.require(:post)
-              .permit(:content, :publish_now, media_urls: [], social_account_ids: [])
+              .permit(:content, :publish_now, :video, media_urls: [], social_account_ids: [])
       end
     end
   end

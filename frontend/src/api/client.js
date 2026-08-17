@@ -22,6 +22,16 @@ client.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`
   }
 
+  // Axios defaults to JSON. A FormData body needs the browser to set the
+  // multipart boundary, so drop the default content type for uploads.
+  if (config.data instanceof FormData) {
+    if (typeof config.headers.delete === 'function') {
+      config.headers.delete('Content-Type')
+    } else {
+      delete config.headers['Content-Type']
+    }
+  }
+
   return config
 })
 

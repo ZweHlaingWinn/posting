@@ -130,6 +130,24 @@ RSpec.describe Publishers::TiktokPublisher do
     end
   end
 
+  describe '#publish with an uploaded file' do
+    let(:post_record) { create(:post, :with_uploaded_video, user: account.user) }
+
+    it 'sends the attached bytes without downloading a URL' do
+      allow(Publishers::Http).to receive(:post_json).and_return(init_response)
+
+      expect(Publishers::MediaSource).not_to receive(:fetch)
+      expect(Publishers::Http).to receive(:put_binary).with(
+        'https://open-upload.tiktokapis.com/video/?upload_id=1',
+        anything,
+        content_type: 'video/mp4',
+        size: 16
+      ).and_return(201)
+
+      expect(adapter.publish(post_record, post_target)).to eq('v_inbox_file~v2.123')
+    end
+  end
+
   describe 'error translation' do
     before { stub_media_download }
 

@@ -2,8 +2,8 @@ module Posts
   # Creates a post and its per-channel targets, optionally sending it right away.
   #
   # Publishing runs inline rather than in a background job: there is no worker
-  # process yet, so the request holds open while the video is downloaded and
-  # forwarded to the platform.
+  # process yet, so the request holds open while the video is uploaded (or
+  # downloaded from a URL) and forwarded to the platform.
   class CreateService < ApplicationService
     def initialize(user:, attributes: {})
       @user = user
@@ -17,10 +17,21 @@ module Posts
       media_urls = normalized_media_urls
       missing_media = media_required_by(accounts)
 
-      if media_urls.empty? && missing_media.present?
+      if media_urls.empty? && video_upload.blank? && missing_media.present?
         return failure(
-          errors: ["#{missing_media.titleize} posts need a video. Add a video URL."]
+          errors: ["#{missing_media.titleize} posts need a video. Upload a file or add a video URL."]
         )
+      end
+
+      if video_upload.present?
+        begin
+          @video_content_type = Publishers::MediaSource.validate_upload!(
+            video_upload,
+            max_bytes: Publishers::TiktokPublisher::DEFAULT_MAX_VIDEO_BYTES
+          )
+        rescue Publishers::MediaSource::Error => e
+          return failure(errors: ["Could not use that video: #{e.message}"])
+        end
       end
 
       post = create_post(accounts, media_urls)
@@ -73,6 +84,7 @@ module Posts
           media_urls: media_urls,
           status: :draft
         )
+        attach_video!(post)
 
         accounts.each { |account| post.post_targets.create!(social_account: account) }
       end
@@ -95,6 +107,26 @@ module Posts
 
     def normalized_media_urls
       Array(@attributes[:media_urls]).map { |url| url.to_s.strip }.reject(&:blank?)
+    end
+
+    def video_upload
+      @attributes[:video]
+    end
+
+    def attach_video!(post)
+      return if video_upload.blank?
+
+      post.video.attach(
+        io: video_io,
+        filename: video_upload.original_filename,
+        content_type: @video_content_type
+      )
+    end
+
+    def video_io
+      io = video_upload.tempfile
+      io.rewind
+      io
     end
   end
 end

@@ -7,6 +7,7 @@ module Posts
 
     def call
       posts = @user.posts
+                   .with_attached_video
                    .includes(post_targets: :social_account)
                    .order(created_at: :desc)
 

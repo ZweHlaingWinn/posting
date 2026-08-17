@@ -52,6 +52,47 @@ module Publishers
       new(url, max_bytes: max_bytes).fetch(&block)
     end
 
+    # Checks a browser-uploaded file before Active Storage keeps it. Returns the
+    # canonical video content type, or raises Error.
+    def self.validate_upload!(upload, max_bytes: DEFAULT_MAX_BYTES)
+      raise Error, "no video file was attached" if upload.blank?
+
+      unless upload.respond_to?(:original_filename) && upload.respond_to?(:size)
+        raise Error, "the video upload is not a file"
+      end
+
+      size = upload.size.to_i
+      raise Error, too_large_message_for(max_bytes) if size > max_bytes
+      raise Error, "the video file is empty" if size.zero?
+
+      content_type = video_content_type(
+        declared: upload.content_type,
+        filename: upload.original_filename
+      )
+
+      if content_type.blank?
+        declared = upload.content_type.to_s.split(";").first.to_s.strip.downcase
+        raise Error,
+              "the video file was #{declared.presence || 'an unknown type'}; " \
+              "expected an MP4, MOV or WebM video"
+      end
+
+      content_type
+    end
+
+    def self.video_content_type(declared:, filename: nil)
+      type = declared.to_s.split(";").first.to_s.strip.downcase
+      return type if EXTENSION_CONTENT_TYPES.value?(type)
+
+      if GENERIC_CONTENT_TYPES.include?(type)
+        EXTENSION_CONTENT_TYPES[File.extname(filename.to_s).downcase].presence
+      end
+    end
+
+    def self.too_large_message_for(max_bytes)
+      "the media is larger than the #{max_bytes / 1_048_576} MB limit"
+    end
+
     def initialize(url, max_bytes: DEFAULT_MAX_BYTES)
       @url = url.to_s
       @max_bytes = max_bytes
@@ -176,23 +217,19 @@ module Publishers
     # host that says it is serving HTML is still refused however the path is
     # spelled.
     def content_type_for(response, uri)
-      declared = response["Content-Type"].to_s.split(";").first.to_s.strip.downcase
+      declared = response["Content-Type"]
+      type = self.class.video_content_type(declared: declared, filename: uri.path)
 
-      return declared if EXTENSION_CONTENT_TYPES.value?(declared)
+      return type if type.present?
 
-      if GENERIC_CONTENT_TYPES.include?(declared)
-        from_extension = EXTENSION_CONTENT_TYPES[File.extname(uri.path).downcase]
-
-        return from_extension if from_extension.present?
-      end
-
+      shown = declared.to_s.split(";").first.to_s.strip.downcase
       raise Error,
-            "the media URL served #{declared.presence || 'an unknown type'}; " \
+            "the media URL served #{shown.presence || 'an unknown type'}; " \
             "expected an MP4, MOV or WebM video"
     end
 
     def too_large_message
-      "the media is larger than the #{@max_bytes / 1_048_576} MB limit"
+      self.class.too_large_message_for(@max_bytes)
     end
   end
 end

@@ -5,6 +5,8 @@ class PostSerializer
       id: post.id,
       content: post.content,
       media_urls: post.media_urls,
+      has_video: post.video.attached?,
+      video_filename: post.video.attached? ? post.video.filename.to_s : nil,
       status: post.status,
       scheduled_at: post.scheduled_at&.iso8601,
       published_at: post.published_at&.iso8601,

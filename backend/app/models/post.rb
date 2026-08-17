@@ -2,6 +2,9 @@ class Post < ApplicationRecord
   belongs_to :user
   has_many :post_targets, dependent: :destroy
   has_many :social_accounts, through: :post_targets
+  # Purge immediately so we do not enqueue a Sidekiq job that would look for the
+  # file on a different Render instance.
+  has_one_attached :video, dependent: :purge
 
   enum :status, {
     draft: 0,
@@ -21,7 +24,7 @@ class Post < ApplicationRecord
   # A post needs either text or media; TikTok and Instagram in particular cannot
   # accept a text-only post.
   def media_attached?
-    media_urls.present?
+    media_urls.present? || video.attached?
   end
 
   private

@@ -75,6 +75,10 @@ const failures = computed(() =>
       {{ url }}
     </a>
 
+    <p v-if="post.has_video && post.video_filename" class="mt-2 truncate text-xs text-ink-muted">
+      {{ post.video_filename }}
+    </p>
+
     <p v-for="target in failures" :key="target.id" class="mt-3 text-xs text-negative">
       {{ target.platform }}: {{ target.error_message }}
     </p>
