@@ -150,13 +150,23 @@ RSpec.describe Oauth::HandleCallbackService do
       expect(result.errors.first).to match(/not supported yet/)
     end
 
-    it 'fails with a generic message when something unexpected is raised' do
+    it 'surfaces the unexpected error so the UI can show what broke' do
       allow(provider).to receive(:exchange_code).and_raise(RuntimeError, 'encryption exploded')
 
       result = call
 
       expect(result).to be_failure
-      expect(result.errors.first).to eq('Could not complete the tiktok connection')
+      expect(result.errors.first).to eq('encryption exploded')
+    end
+
+    it 'reports a clear error when token encryption is misconfigured' do
+      allow_any_instance_of(SocialAccount).to receive(:save)
+        .and_raise(ActiveRecord::Encryption::Errors::Configuration, 'Missing primary_key')
+
+      result = call
+
+      expect(result).to be_failure
+      expect(result.errors.first).to include('AR_ENCRYPTION_PRIMARY_KEY')
     end
   end
 end

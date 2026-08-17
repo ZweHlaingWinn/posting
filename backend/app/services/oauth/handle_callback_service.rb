@@ -48,9 +48,12 @@ module Oauth
            Providers::Base::AuthorizationError => e
       Rails.logger.error("[oauth] #{@platform} callback failed: #{e.message}")
       failure(errors: [e.message])
+    rescue ActiveRecord::Encryption::Errors::Base, OpenSSL::Cipher::CipherError => e
+      Rails.logger.error("[oauth] #{@platform} callback failed: #{e.class}: #{e.message}")
+      failure(errors: [ConnectSocialAccountService.encryption_error_message])
     rescue StandardError => e
       Rails.logger.error("[oauth] #{@platform} callback failed: #{e.class}: #{e.message}")
-      failure(errors: ["Could not complete the #{@platform} connection"])
+      failure(errors: [e.message.presence || "Could not complete the #{@platform} connection"])
     end
   end
 end
