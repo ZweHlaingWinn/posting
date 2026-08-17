@@ -98,9 +98,9 @@ envVarGroups:
       - key: RAILS_ENV
         value: production
       - key: FRONTEND_URL
-        value: http://localhost:5173
+        value: https://posting123.netlify.app
       - key: CORS_ALLOWED_ORIGINS
-        value: http://localhost:5173
+        value: https://posting123.netlify.app
       - key: DEVISE_MAILER_SENDER
         value: no-reply@example.com
       - key: JWT_EXPIRATION_HOURS
