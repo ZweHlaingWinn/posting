@@ -137,7 +137,8 @@ async function submit(publishNow) {
         <div>
           <h2 class="text-base font-semibold">Create post</h2>
           <p class="mt-1 text-xs text-ink-muted">
-            The video is sent to your TikTok drafts, then you finish it in the TikTok app.
+            TikTok sends an inbox notification, not a camera draft. Open that notification in the
+            TikTok app to finish posting.
           </p>
         </div>
 

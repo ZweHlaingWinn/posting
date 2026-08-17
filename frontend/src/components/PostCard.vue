@@ -19,7 +19,7 @@ const STATUS_STYLES = {
 // TikTok drafts until they post it themselves.
 const STATUS_LABELS = {
   draft: 'Draft',
-  published: 'Sent to TikTok',
+  published: 'Inbox notification sent',
   failed: 'Failed'
 }
 

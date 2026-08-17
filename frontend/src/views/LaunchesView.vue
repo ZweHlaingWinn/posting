@@ -20,7 +20,8 @@ const hasChannels = computed(() => channels.activeAccounts.length > 0)
 onMounted(() => posts.load())
 
 function onPublished() {
-  notice.value = 'Sent to your TikTok drafts. Open the TikTok app to finish posting.'
+  notice.value =
+    'TikTok sent an inbox notification, not a camera draft. Open the TikTok app as the connected account, tap Inbox, and open that notification to finish the post. It can take a minute and expires in about 24 hours.'
   error.value = ''
 }
 

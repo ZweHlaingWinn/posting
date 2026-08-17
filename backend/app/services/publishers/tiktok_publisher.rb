@@ -23,6 +23,34 @@ module Publishers
     # is one PUT; past it the API requires sequenced multi-chunk transfers.
     DEFAULT_MAX_VIDEO_BYTES = 64 * 1024 * 1024
 
+    # Inbox upload is async after the PUT. SEND_TO_USER_INBOX is the success
+    # state; returning earlier would tell the user it worked when TikTok later
+    # rejects the file.
+    INBOX_READY_STATUSES = %w[SEND_TO_USER_INBOX PUBLISH_COMPLETE].freeze
+    IN_FLIGHT_STATUSES = %w[PROCESSING_UPLOAD PROCESSING_DOWNLOAD PROCESSING].freeze
+    STATUS_ATTEMPTS = 20
+    STATUS_WAIT_SECONDS = 2
+
+    FAIL_REASON_MESSAGES = {
+      "file_format_check_failed" =>
+        "TikTok rejected the file format. Use an MP4, MOV or WebM that is 23-60 FPS " \
+        "and at least 360 pixels on each side.",
+      "duration_check_failed" =>
+        "TikTok rejected the video length. It must be between 3 seconds and 10 minutes.",
+      "frame_rate_check_failed" =>
+        "TikTok rejected the frame rate. Use a video between 23 and 60 FPS.",
+      "picture_size_check_failed" =>
+        "TikTok rejected the resolution. Each side must be at least 360 pixels.",
+      "internal" => "TikTok could not process the video. Try again in a minute.",
+      "auth_removed" => "The TikTok account was disconnected while the video was uploading. Reconnect and try again.",
+      "spam_risk_too_many_posts" =>
+        "This TikTok account has posted too many times in 24 hours via the API.",
+      "spam_risk_user_banned_from_posting" =>
+        "TikTok has blocked this account from creating new posts.",
+      "spam_risk_text" => "TikTok rejected the caption.",
+      "spam_risk" => "TikTok rejected this upload as risky."
+    }.freeze
+
     # TikTok reports problems with a stable error code. These are the ones a user
     # can act on, phrased for the person who will read them in the app.
     ERROR_MESSAGES = {
@@ -70,6 +98,8 @@ module Publishers
         target = initialize_upload(media)
 
         begin
+          media.file.rewind if media.file.respond_to?(:rewind)
+
           Http.put_binary(
             target.fetch("upload_url"),
             media.file,
@@ -84,6 +114,7 @@ module Publishers
           )
         end
 
+        wait_until_in_inbox(target.fetch("publish_id"))
         target.fetch("publish_id")
       end
     end
@@ -157,6 +188,42 @@ module Publishers
       raise PublishError.new(
         "Could not use that video: #{e.message}",
         platform: self.class.platform_name
+      )
+    end
+
+    def wait_until_in_inbox(publish_id)
+      STATUS_ATTEMPTS.times do |attempt|
+        payload = post_json(STATUS_URL, publish_id: publish_id)
+        status = payload.dig("data", "status").to_s
+
+        return if INBOX_READY_STATUSES.include?(status)
+
+        if status == "FAILED"
+          reason = payload.dig("data", "fail_reason").to_s
+          raise PublishError.new(
+            FAIL_REASON_MESSAGES[reason] ||
+              "TikTok could not process the video#{": #{reason}" if reason.present?}.",
+            platform: self.class.platform_name,
+            retryable: reason == "internal"
+          )
+        end
+
+        unless IN_FLIGHT_STATUSES.include?(status) || status.blank?
+          raise PublishError.new(
+            "TikTok reported an unexpected upload status (#{status}).",
+            platform: self.class.platform_name,
+            retryable: true
+          )
+        end
+
+        sleep STATUS_WAIT_SECONDS if attempt < STATUS_ATTEMPTS - 1
+      end
+
+      raise PublishError.new(
+        "TikTok is still processing the video. Open the TikTok app inbox in a minute, " \
+        "or try again if nothing arrives.",
+        platform: self.class.platform_name,
+        retryable: true
       )
     end
 

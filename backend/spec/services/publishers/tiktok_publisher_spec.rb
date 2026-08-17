@@ -24,10 +24,28 @@ RSpec.describe Publishers::TiktokPublisher do
     }
   end
 
+  let(:status_response) do
+    {
+      'data' => { 'status' => 'SEND_TO_USER_INBOX', 'fail_reason' => '' },
+      'error' => { 'code' => 'ok', 'message' => '' }
+    }
+  end
+
   # The download is a separate seam with its own spec, so hand the adapter a
   # ready-made file rather than standing up an HTTP server.
   def stub_media_download
     allow(Publishers::MediaSource).to receive(:fetch).and_yield(media)
+  end
+
+  def stub_tiktok_transfer
+    allow(adapter).to receive(:sleep)
+    allow(Publishers::Http).to receive(:put_binary).and_return(201)
+    allow(Publishers::Http).to receive(:post_json).with(
+      described_class::INIT_URL, anything, bearer: anything
+    ).and_return(init_response)
+    allow(Publishers::Http).to receive(:post_json).with(
+      described_class::STATUS_URL, anything, bearer: anything
+    ).and_return(status_response)
   end
 
   describe 'capabilities' do
@@ -41,11 +59,12 @@ RSpec.describe Publishers::TiktokPublisher do
   end
 
   describe '#publish' do
-    before { stub_media_download }
+    before do
+      stub_media_download
+      stub_tiktok_transfer
+    end
 
     it 'initializes the upload with a single chunk covering the whole video' do
-      allow(Publishers::Http).to receive(:put_binary).and_return(201)
-
       expect(Publishers::Http).to receive(:post_json).with(
         described_class::INIT_URL,
         {
@@ -63,8 +82,6 @@ RSpec.describe Publishers::TiktokPublisher do
     end
 
     it 'sends the bytes to the upload URL TikTok returned' do
-      allow(Publishers::Http).to receive(:post_json).and_return(init_response)
-
       expect(Publishers::Http).to receive(:put_binary).with(
         'https://open-upload.tiktokapis.com/video/?upload_id=1',
         media.file,
@@ -75,17 +92,36 @@ RSpec.describe Publishers::TiktokPublisher do
       adapter.publish(post_record, post_target)
     end
 
-    it 'returns the publish id' do
-      allow(Publishers::Http).to receive(:post_json).and_return(init_response)
-      allow(Publishers::Http).to receive(:put_binary).and_return(201)
+    it 'returns the publish id once TikTok has delivered the inbox notification' do
+      expect(adapter.publish(post_record, post_target)).to eq('v_inbox_file~v2.123')
+    end
+
+    it 'polls until processing finishes' do
+      processing = {
+        'data' => { 'status' => 'PROCESSING_UPLOAD' },
+        'error' => { 'code' => 'ok' }
+      }
+
+      allow(Publishers::Http).to receive(:post_json).with(
+        described_class::STATUS_URL, anything, bearer: anything
+      ).and_return(processing, status_response)
 
       expect(adapter.publish(post_record, post_target)).to eq('v_inbox_file~v2.123')
     end
 
-    it 'caps the download at the configured size' do
-      allow(Publishers::Http).to receive(:post_json).and_return(init_response)
-      allow(Publishers::Http).to receive(:put_binary).and_return(201)
+    it 'surfaces a processing failure instead of claiming the draft was sent' do
+      allow(Publishers::Http).to receive(:post_json).with(
+        described_class::STATUS_URL, anything, bearer: anything
+      ).and_return(
+        'data' => { 'status' => 'FAILED', 'fail_reason' => 'duration_check_failed' },
+        'error' => { 'code' => 'ok' }
+      )
 
+      expect { adapter.publish(post_record, post_target) }
+        .to raise_error(Publishers::PublishError, /between 3 seconds and 10 minutes/)
+    end
+
+    it 'caps the download at the configured size' do
       expect(Publishers::MediaSource).to receive(:fetch)
         .with('https://cdn.example.com/clip.mp4', max_bytes: 64 * 1024 * 1024)
         .and_yield(media)
@@ -94,14 +130,15 @@ RSpec.describe Publishers::TiktokPublisher do
     end
 
     it 'raises when TikTok returns no upload target' do
-      allow(Publishers::Http).to receive(:post_json).and_return('data' => {})
+      allow(Publishers::Http).to receive(:post_json).with(
+        described_class::INIT_URL, anything, bearer: anything
+      ).and_return('data' => {})
 
       expect { adapter.publish(post_record, post_target) }
         .to raise_error(Publishers::PublishError, /did not return an upload target/)
     end
 
     it 'wraps an upload failure and keeps it retryable when TikTok is at fault' do
-      allow(Publishers::Http).to receive(:post_json).and_return(init_response)
       allow(Publishers::Http).to receive(:put_binary)
         .and_raise(Publishers::Http::Error.new('HTTP 503', status: 503))
 
@@ -133,9 +170,9 @@ RSpec.describe Publishers::TiktokPublisher do
   describe '#publish with an uploaded file' do
     let(:post_record) { create(:post, :with_uploaded_video, user: account.user) }
 
-    it 'sends the attached bytes without downloading a URL' do
-      allow(Publishers::Http).to receive(:post_json).and_return(init_response)
+    before { stub_tiktok_transfer }
 
+    it 'sends the attached bytes without downloading a URL' do
       expect(Publishers::MediaSource).not_to receive(:fetch)
       expect(Publishers::Http).to receive(:put_binary).with(
         'https://open-upload.tiktokapis.com/video/?upload_id=1',
@@ -149,7 +186,10 @@ RSpec.describe Publishers::TiktokPublisher do
   end
 
   describe 'error translation' do
-    before { stub_media_download }
+    before do
+      stub_media_download
+      allow(adapter).to receive(:sleep)
+    end
 
     def publish_with_error(code, status: 400)
       allow(Publishers::Http).to receive(:post_json).and_raise(
@@ -237,8 +277,7 @@ RSpec.describe Publishers::TiktokPublisher do
 
     it 'exchanges the refresh token before publishing' do
       stub_media_download
-      allow(Publishers::Http).to receive(:post_json).and_return(init_response)
-      allow(Publishers::Http).to receive(:put_binary).and_return(201)
+      stub_tiktok_transfer
 
       expect(Oauth::Http).to receive(:post_form).with(
         described_class::TOKEN_URL,
