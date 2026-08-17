@@ -56,7 +56,7 @@ module Oauth
       private
 
       def request_token(code, code_verifier)
-        Http.post_form(
+        token = Http.post_form(
           TOKEN_URL,
           {
             client_key: client_key,
@@ -66,8 +66,17 @@ module Oauth
             redirect_uri: redirect_uri,
             code_verifier: code_verifier
           },
-          { "Content-Type" => "application/x-www-form-urlencoded" }
+          {
+            "Content-Type" => "application/x-www-form-urlencoded",
+            "Cache-Control" => "no-cache"
+          }
         )
+
+        if token["access_token"].blank? && token["error"].present?
+          raise AuthorizationError, "TikTok rejected the authorization code: #{token_error_message(token)}"
+        end
+
+        token
       rescue Http::Error => e
         raise AuthorizationError, "TikTok rejected the authorization code: #{describe(e)}"
       end
@@ -86,9 +95,14 @@ module Oauth
       # TikTok reports failures both as HTTP errors and as a 200 with an error
       # body, so surface whichever description is available.
       def describe(error)
-        error.body&.dig("error_description") ||
-          error.body&.dig("error") ||
-          error.message
+        token_error_message(error.body) || error.message
+      end
+
+      def token_error_message(payload)
+        return if payload.blank?
+
+        payload["error_description"].presence ||
+          (payload["error"].is_a?(Hash) ? payload["error"]["message"] || payload["error"]["code"] : payload["error"])
       end
 
       def expires_at_from(expires_in)

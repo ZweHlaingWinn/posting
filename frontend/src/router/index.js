@@ -37,14 +37,14 @@ const routes = [
     meta: { requiresAuth: true },
     children: [
       {
+        // The backend OAuth callback redirects here with ?connected= or
+        // ?connect_error=, so this path must stay in sync with
+        // Api::V1::Oauth::CallbacksController::FRONTEND_RETURN_PATH.
         path: 'launches',
         name: 'launches',
         component: () => import('@/views/LaunchesView.vue')
       },
       {
-        // The backend OAuth callback redirects here with ?connected= or
-        // ?connect_error=, so this path must stay in sync with
-        // Api::V1::Oauth::CallbacksController.
         path: 'settings/accounts',
         name: 'settings-accounts',
         component: () => import('@/views/SettingsAccountsView.vue')

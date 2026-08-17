@@ -1,12 +1,9 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed } from 'vue'
 import ChannelAvatar from '@/components/ChannelAvatar.vue'
 import { useChannelsStore } from '@/stores/channels'
 
 const channels = useChannelsStore()
-const route = useRoute()
-const router = useRouter()
 
 const notice = ref('')
 const error = ref('')
@@ -16,23 +13,6 @@ const disconnecting = ref(null)
 const connectedPlatformIds = computed(() =>
   channels.accounts.filter((a) => a.status === 'active').map((a) => a.platform)
 )
-
-onMounted(() => {
-  // The backend OAuth callback redirects here with the outcome in the query
-  // string, since it is a browser navigation rather than an XHR.
-  if (route.query.connected) {
-    notice.value = `${route.query.connected} connected successfully.`
-    channels.load()
-  }
-
-  if (route.query.connect_error) {
-    error.value = route.query.connect_error
-  }
-
-  if (route.query.connected || route.query.connect_error) {
-    router.replace({ path: route.path })
-  }
-})
 
 async function onConnect(platform) {
   busyPlatform.value = platform.id

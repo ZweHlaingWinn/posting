@@ -163,6 +163,17 @@ RSpec.describe Oauth::Providers::Tiktok do
       )
     end
 
+    it 'surfaces a 200 error body from the token endpoint' do
+      allow(Oauth::Http).to receive(:post_form).and_return(
+        'error' => 'invalid_grant',
+        'error_description' => 'Authorization code is expired.'
+      )
+
+      expect { credentials }.to raise_error(
+        Oauth::Providers::Base::AuthorizationError, /Authorization code is expired/
+      )
+    end
+
     it 'raises when the profile lookup fails' do
       allow(Oauth::Http).to receive(:get_json).and_raise(
         Oauth::Http::Error.new('HTTP 401', status: 401, body: nil)

@@ -149,5 +149,14 @@ RSpec.describe Oauth::HandleCallbackService do
       expect(result).to be_failure
       expect(result.errors.first).to match(/not supported yet/)
     end
+
+    it 'fails with a generic message when something unexpected is raised' do
+      allow(provider).to receive(:exchange_code).and_raise(RuntimeError, 'encryption exploded')
+
+      result = call
+
+      expect(result).to be_failure
+      expect(result.errors.first).to eq('Could not complete the tiktok connection')
+    end
   end
 end

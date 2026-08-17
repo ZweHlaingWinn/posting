@@ -1,3 +1,5 @@
+require "openssl"
+
 module Oauth
   # Minimal JSON/form HTTP helper built on Net::HTTP.
   #
@@ -48,7 +50,13 @@ module Oauth
         ) { |http| http.request(request) }
 
         parse(response)
-      rescue Timeout::Error, Errno::ECONNREFUSED, SocketError => e
+      rescue Timeout::Error,
+             Errno::ECONNREFUSED,
+             Errno::ECONNRESET,
+             Errno::ETIMEDOUT,
+             SocketError,
+             OpenSSL::SSL::SSLError,
+             EOFError => e
         raise Error, "network error contacting #{uri.host}: #{e.message}"
       end
 

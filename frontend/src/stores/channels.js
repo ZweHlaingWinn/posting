@@ -37,7 +37,7 @@ export const useChannelsStore = defineStore('channels', () => {
   }
 
   // Hands off to the provider. The browser leaves the SPA here and returns to
-  // /settings/accounts via the backend callback.
+  // /launches via the backend callback.
   async function connect(platform) {
     const { data } = await channelsApi.startConnect(platform)
     window.location.assign(data.authorization_url)

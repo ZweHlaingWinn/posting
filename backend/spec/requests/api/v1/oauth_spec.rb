@@ -91,7 +91,7 @@ RSpec.describe 'Api::V1::Oauth', type: :request do
       }.to change { user.social_accounts.count }.by(1)
 
       expect(response).to have_http_status(:found)
-      expect(response.location).to start_with('http://localhost:5173/settings/accounts')
+      expect(response.location).to start_with('http://localhost:5173/launches')
       expect(response.location).to include('connected=tiktok')
     end
 
@@ -128,6 +128,16 @@ RSpec.describe 'Api::V1::Oauth', type: :request do
 
       expect(response.location).not_to include('access-token')
       expect(response.location).not_to include('refresh-token')
+    end
+
+    it 'still redirects into the frontend when the callback raises' do
+      allow(Oauth::HandleCallbackService).to receive(:call).and_raise(RuntimeError, 'boom')
+
+      get '/api/v1/oauth/tiktok/callback', params: { code: 'the-code', state: state }
+
+      expect(response).to have_http_status(:found)
+      expect(response.location).to start_with('http://localhost:5173/launches')
+      expect(response.location).to include('connect_error=')
     end
   end
 end
