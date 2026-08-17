@@ -1,4 +1,7 @@
+require "net/http"
 require "openssl"
+require "uri"
+require "json"
 
 module Oauth
   # Minimal JSON/form HTTP helper built on Net::HTTP.
